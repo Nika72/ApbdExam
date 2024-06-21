@@ -16,9 +16,21 @@ namespace ApbdExam2.Services
             _context = context;
         }
 
-        public async Task<IEnumerable<Mission>> GetMissionsAsync(CancellationToken cancellationToken)
+        public async Task<IEnumerable<Mission>> GetMissionsAsync(string sortBy, CancellationToken cancellationToken)
         {
-            return await _context.Missions.Include(m => m.Organization).Include(m => m.AstronautMissions).ThenInclude(am => am.Astronaut).ToListAsync(cancellationToken);
+            var query = _context.Missions.Include(m => m.Organization).Include(m => m.AstronautMissions).ThenInclude(am => am.Astronaut).AsQueryable();
+
+            switch (sortBy?.ToLower())
+            {
+                case "date":
+                    query = query.OrderBy(m => m.LaunchDate);
+                    break;
+                default:
+                    query = query.OrderBy(m => m.Name);
+                    break;
+            }
+
+            return await query.ToListAsync(cancellationToken);
         }
 
         public async Task<Mission> GetMissionByIdAsync(int id, CancellationToken cancellationToken)
@@ -32,14 +44,17 @@ namespace ApbdExam2.Services
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task DeleteMissionAsync(int id, CancellationToken cancellationToken)
+        public async Task AssignAstronautToMissionAsync(int astronautId, int missionId, CancellationToken cancellationToken)
         {
-            var mission = await _context.Missions.FindAsync(id);
-            if (mission != null)
+            var astronautMission = new AstronautMission
             {
-                _context.Missions.Remove(mission);
-                await _context.SaveChangesAsync(cancellationToken);
-            }
+                AstronautId = astronautId,
+                MissionId = missionId,
+                Role = "Assigned" // You can adjust the role as needed
+            };
+
+            await _context.AstronautMissions.AddAsync(astronautMission, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }

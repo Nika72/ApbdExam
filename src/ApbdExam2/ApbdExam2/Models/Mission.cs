@@ -18,5 +18,8 @@ namespace ApbdExam2.Models
         public Organization Organization { get; set; }
 
         public ICollection<AstronautMission> AstronautMissions { get; set; }
+
+        [Timestamp]
+        public byte[] RowVersion { get; set; }
     }
 }

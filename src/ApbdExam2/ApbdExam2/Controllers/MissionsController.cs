@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using ApbdExam2.Dtos;
@@ -12,7 +10,6 @@ using ApbdExam2.Services;
 namespace ApbdExam2.Controllers
 {
     [Route("api/missions")]
-    [Authorize]
     [ApiController]
     public class MissionsController : ControllerBase
     {
@@ -24,63 +21,49 @@ namespace ApbdExam2.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MissionDto>>> GetMissions(CancellationToken cancellationToken = default)
+        public async Task<ActionResult<IEnumerable<MissionDto>>> GetMissions([FromQuery] string sortBy, CancellationToken cancellationToken = default)
         {
-            try
+            var missions = await _missionService.GetMissionsAsync(sortBy, cancellationToken);
+            var missionDtos = missions.Select(m => new MissionDto
             {
-                var missions = await _missionService.GetMissionsAsync(cancellationToken);
-                var missionDtos = missions.Select(m => new MissionDto
+                Id = m.Id,
+                Name = m.Name,
+                LaunchDate = m.LaunchDate,
+                OrganizationName = m.Organization.Name,
+                AstronautMissions = m.AstronautMissions.Select(am => new AstronautMissionDto
                 {
-                    Id = m.Id,
-                    Name = m.Name,
-                    LaunchDate = m.LaunchDate,
-                    OrganizationName = m.Organization.Name,
-                    AstronautMissions = m.AstronautMissions.Select(am => new AstronautMissionDto
-                    {
-                        AstronautName = am.Astronaut.FullName,
-                        Role = am.Role
-                    }).ToList()
-                }).ToList();
+                    AstronautName = am.Astronaut.FullName,
+                    Role = am.Role
+                }).ToList()
+            }).ToList();
 
-                return Ok(missionDtos);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode((int)HttpStatusCode.InternalServerError, $"Internal Server Error: {ex.Message}");
-            }
+            return Ok(missionDtos);
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<MissionDto>> GetMission(int id, CancellationToken cancellationToken = default)
         {
-            try
+            var mission = await _missionService.GetMissionByIdAsync(id, cancellationToken);
+
+            if (mission == null)
             {
-                var mission = await _missionService.GetMissionByIdAsync(id, cancellationToken);
-
-                if (mission == null)
-                {
-                    return NotFound($"Mission with ID {id} not found!");
-                }
-
-                var missionDto = new MissionDto
-                {
-                    Id = mission.Id,
-                    Name = mission.Name,
-                    LaunchDate = mission.LaunchDate,
-                    OrganizationName = mission.Organization.Name,
-                    AstronautMissions = mission.AstronautMissions.Select(am => new AstronautMissionDto
-                    {
-                        AstronautName = am.Astronaut.FullName,
-                        Role = am.Role
-                    }).ToList()
-                };
-
-                return Ok(missionDto);
+                return NotFound($"Mission with ID {id} not found!");
             }
-            catch (Exception ex)
+
+            var missionDto = new MissionDto
             {
-                return StatusCode((int)HttpStatusCode.InternalServerError, $"Internal Server Error: {ex.Message}");
-            }
+                Id = mission.Id,
+                Name = mission.Name,
+                LaunchDate = mission.LaunchDate,
+                OrganizationName = mission.Organization.Name,
+                AstronautMissions = mission.AstronautMissions.Select(am => new AstronautMissionDto
+                {
+                    AstronautName = am.Astronaut.FullName,
+                    Role = am.Role
+                }).ToList()
+            };
+
+            return Ok(missionDto);
         }
 
         [HttpPost]
@@ -108,17 +91,17 @@ namespace ApbdExam2.Controllers
             return CreatedAtAction(nameof(GetMission), new { id = mission.Id }, mission);
         }
 
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteMission(int id, CancellationToken cancellationToken = default)
+        [HttpPost("astronaut")]
+        public async Task<IActionResult> AssignAstronautToMission([FromBody] AssignAstronautDto assignAstronautDto, CancellationToken cancellationToken = default)
         {
-            var mission = await _missionService.GetMissionByIdAsync(id, cancellationToken);
-            if (mission == null)
+            if (assignAstronautDto == null)
             {
-                return NotFound($"Mission with ID {id} not found!");
+                return BadRequest("Invalid data.");
             }
 
-            await _missionService.DeleteMissionAsync(id, cancellationToken);
-            return NoContent();
+            await _missionService.AssignAstronautToMissionAsync(assignAstronautDto.AstronautId, assignAstronautDto.MissionId, cancellationToken);
+
+            return Ok();
         }
     }
 }
