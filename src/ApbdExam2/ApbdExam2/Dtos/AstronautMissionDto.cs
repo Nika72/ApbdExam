@@ -1,5 +1,5 @@
-
-namespace ApbdExam2.Dtos{
+namespace ApbdExam2.Dtos
+{
     public class AstronautMissionDto
     {
         public string AstronautName { get; set; }

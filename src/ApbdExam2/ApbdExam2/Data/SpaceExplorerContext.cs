@@ -1,6 +1,5 @@
-using ApbdExam2.Models;
 using Microsoft.EntityFrameworkCore;
-using space_explorer.Models;
+using ApbdExam2.Models;
 
 namespace ApbdExam2.Data
 {
